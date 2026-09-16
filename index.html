@@ -1,0 +1,26 @@
+<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nabta Rewards</title>
+<style>
+body{margin:0;background:#071426;color:#fff;font-family:Arial}.wrap{max-width:440px;margin:auto;padding:18px}.card{background:#0d2038;padding:18px;border-radius:18px;margin:12px 0}input,button{width:100%;padding:13px;margin:7px 0;border-radius:11px;border:0;font:inherit}input{background:#081a2e;color:#fff;border:1px solid #31506b}button{background:#ff8a00;font-weight:bold}.secondary{background:#183957;color:#fff}.danger{background:#9b3030;color:#fff}.logo{text-align:center;color:#ff8a00;font-size:28px;font-weight:bold;margin:25px}.small{color:#adbdca}.err{color:#ff9da8}.ok{color:#8ff0b0}.hide{display:none}.row{display:flex;gap:8px}.row>*{flex:1}.points{text-align:center;font-size:42px;color:#ff9b22;font-weight:bold}
+</style><div class="wrap">
+<div id="login"><div class="logo">NABTA REWARDS</div><div class="card"><h2>تسجيل دخول حقيقي</h2><input id="u" placeholder="اسم المستخدم"><input id="p" type="password" placeholder="كلمة المرور"><button onclick="login()">تسجيل الدخول</button><button class="secondary" onclick="register()">إنشاء حساب</button><p id="m" class="err"></p><p class="small">الحسابات تُحفظ في قاعدة بيانات الخادم.</p></div></div>
+<div id="app" class="hide"><div class="row"><div><b id="who"></b></div><button class="danger" onclick="logout()">خروج</button></div>
+<div class="card"><div class="small">رصيد النقاط</div><div id="pts" class="points">0</div></div>
+<div class="card"><h3>المهام</h3><button onclick="task(100)">مهمة +100 نقطة</button><button onclick="task(250)">مهمة +250 نقطة</button></div>
+<div class="card"><h3>المكافآت</h3><button onclick="redeem()">استبدال 500 نقطة (تجريبي)</button></div>
+<div class="card"><h3>السجل</h3><div id="hist" class="small"></div></div>
+<div id="admin" class="card hide"><h2>🛠️ لوحة التحكم</h2><label>نسبة أرباح صاحب التطبيق</label><input id="rate" type="number" min="0" max="100"><button onclick="saveRate()">حفظ النسبة</button><p id="rates"></p><h3>المستخدمون</h3><div id="users"></div></div>
+</div></div>
+<script>
+async function api(url,opt={}){let r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});let d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'حدث خطأ');return d}
+function showErr(e){document.getElementById('m').textContent=e.message}
+async function login(){try{let d=await api('/api/login',{method:'POST',body:JSON.stringify({username:u.value,password:p.value})});open(d.user)}catch(e){showErr(e)}}
+async function register(){try{let d=await api('/api/register',{method:'POST',body:JSON.stringify({username:u.value,password:p.value})});open(d.user)}catch(e){showErr(e)}}
+function open(user){loginBox.style.display='none';app.classList.remove('hide');who.textContent=user.username;pts.textContent=user.points;load()}
+async function load(){let d=await api('/api/me');who.textContent=d.user.username;pts.textContent=d.user.points;if(d.user.admin){admin.classList.remove('hide');rate.value=d.ownerRate;rates.textContent=`لك: ${d.ownerRate}% — للمستخدمين: ${d.userRate}%`;loadAdmin()}let h=await api('/api/history');hist.innerHTML=h.length?h.map(x=>`<p>${x.text}</p>`).join(''):'لا يوجد سجل'}
+async function task(n){try{let d=await api('/api/tasks/'+n,{method:'POST'});pts.textContent=d.user.points;load()}catch(e){alert(e.message)}}
+async function redeem(){try{let d=await api('/api/redeem',{method:'POST'});pts.textContent=d.user.points;load()}catch(e){alert(e.message)}}
+async function logout(){await api('/api/logout',{method:'POST'});location.reload()}
+async function saveRate(){try{let d=await api('/api/admin/profit-rate',{method:'POST',body:JSON.stringify({rate:Number(rate.value)})});rates.textContent=`لك: ${d.ownerRate}% — للمستخدمين: ${d.userRate}%`}catch(e){alert(e.message)}}
+async function loadAdmin(){let d=await api('/api/admin/summary');users.innerHTML=d.users.map(x=>`<p>${x.username}: ${x.points} نقطة <button onclick="change(${x.id})">تعديل</button></p>`).join('')}
+async function change(id){let delta=prompt('أدخل مقدار التعديل (+ أو -)');if(delta===null)return;try{await api('/api/admin/users/'+id+'/points',{method:'POST',body:JSON.stringify({delta:Number(delta)})});loadAdmin()}catch(e){alert(e.message)}}
+</script>
